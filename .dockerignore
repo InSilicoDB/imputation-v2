@@ -1,0 +1,13 @@
+./scripts/**
+./archived/**
+./.ipynb_checkpoints/**
+./required_tools/**
+./.git/**
+!./required_tools/check_vcf_build
+!./required_tools/samtools-1.11.tar.bz2
+!./required_tools/bcftools-1.11.tar.bz2
+!./required_tools/plink2
+!./required_tools/plink
+!./required_tools/lift
+!./required_tools/chainfiles
+./A4420_2020_1*

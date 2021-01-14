@@ -25,17 +25,15 @@ hostname
 pwd
 
 
-module purge
-module load vcftools
-module load samtools
+# module purge
+# module load vcftools
+# module load samtools
 
 
 export inprefix=$(basename $myinput | sed -e 's/\.bed$//g')
 export indir=$(dirname $myinput)
 
-export GH="$SLURM_SUBMIT_DIR/required_tools/GenotypeHarmonizer/GenotypeHarmonizer.jar"
-export plink="$SLURM_SUBMIT_DIR/required_tools/plink"
-export plink2="$SLURM_SUBMIT_DIR/required_tools/plink2"
+export GH="/app/required_tools/GenotypeHarmonizer/GenotypeHarmonizer.jar"
 
 starttime=$(date +%s)
 
@@ -46,7 +44,7 @@ if [ -z $ref_path ]; then
 fi
 
 if [ ! -d $myoutdir ]; then
-        mkdir -p $myoutdir
+    mkdir -p $myoutdir
 fi
 
 cd $myoutdir
@@ -105,7 +103,7 @@ echo "GH done."
 
 ############################
 # Shaun: upgrade to parallel
-# if [ -f $inprefix.chrlist ]; then 
+# if [ -f $inprefix.chrlist ]; then
 #     rm $inprefix.chrlist
 # fi
 
@@ -125,7 +123,7 @@ echo "GH done."
 # echo "Merging all chromosomes..."
 # #FIXING STUPID BUG WITH  --keep-allele-order
 # plink --bfile $outname.chr1 --merge-list $inprefix.chrlist --allow-extra-chr --a1-allele $indir/$inprefix.bim 5 2  --biallelic-only --set-missing-var-ids @:#\$1:\$2 --make-bed --out ./$outname.m
-# # TODO: update to plink2 when it supported merging function.   
+# # TODO: update to plink2 when it supported merging function.
 
 # #RR moving fix ref and introducing remove duplicates
 # #DISCOVERED THAT --keep-allele-order IS NOT WORKING, DISABLING ALLELE ORDER CHANGE BY FORCE!!!!!!
@@ -153,7 +151,7 @@ echo "GH done."
 FIXREF_FUN () {
     echo "Merging all chromosomes..."
     # NOTE: --id-delim can no longer be used with --const-fid or --double-id.
-    $plink2 --bfile $outname.chr$1 --max-alleles 2 --set-missing-var-ids @:#\$1:\$2 --export vcf-4.2 bgz --double-id --out $outname.chr$1.0
+    plink2 --bfile $outname.chr$1 --max-alleles 2 --set-missing-var-ids @:#\$1:\$2 --export vcf-4.2 bgz --double-id --out $outname.chr$1.0
 
     tabix -p vcf $outname.chr$1.0.vcf.gz
     #rm $outname.m.bed $outname.m.bim $outname.m.fam

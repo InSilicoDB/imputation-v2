@@ -11,9 +11,11 @@ echo "Running on node:"
 hostname
 pwd
 
-module purge
-module load R
+# module purge
+# module load R
 
+myinput=$1
+myoutput="$1.BuildChecked"
 #myinput example: /stsi/raqueld/vcf/6800_JHS_all_chr_sampleID_c2.vcf
 #myoutput example: /stsi/raqueld/0_check_vcf_build/6800_JHS_all_chr_sampleID_c2.BuildChecked
 #How to run Example
@@ -22,7 +24,7 @@ module load R
 # READ_ARR() {
 #     # create filepath array when input txt file list.
 #     declare -A my_arr
-#     while read line; do 
+#     while read line; do
 #         chrom=$(echo $line | awk '{print$1}')
 #         fp=$(echo $line | awk '{print$2}')
 #     #     echo $chrom and $fp
@@ -33,16 +35,17 @@ module load R
 
 
 # Get only filename of chr1 to check the genome build if input vcf already split
-if [[ ${myinput} == *.txt ]]; then
+if [[ ${myinput} == *.vcf ]]; then
     echo "Input autosome list detected, run parallel pipeline."
-    my_chr1=$(cat ${myinput} | awk '$1==1 {print$2}')
-    mydirname=$(dirname ${my_chr1})
+    my_chr1='my_chr1.txt'
+    cat ${myinput} | awk '$1==1 {print$0}' > $my_chr1
+    mydirname=$PWD
     filename=$(basename ${my_chr1})
-    echo $mydirname/$filename
+    echo $PWD/$filename
 elif [[ ${myinput} == *.vcf.gz ]]; then
     echo "Merged vcf.gz file detected, chr1 will be extract in the Rscript."
     mydirname=$(dirname $myinput)
-    filename=$(basename $myinput)    
+    filename=$(basename $myinput)
 else
     echo "Invalid file format, please check the input."
     exit
@@ -74,7 +77,10 @@ fi
 # fi
 # gzendtime=$(date +%s)
 
+head $mydirname/$filename
+
 vcfstarttime=$(date +%s)
+echo "Rscript $check_vcf_build $mydirname/$filename > $myoutput"
 Rscript $check_vcf_build $mydirname/$filename > $myoutput
 vcfendtime=$(date +%s)
 
@@ -83,4 +89,3 @@ vcfruntime=$((vcfendtime-vcfstarttime))
 
 echo "vcf check run time: $vcfruntime"
 # echo "Extract run time: $gzruntime"
-

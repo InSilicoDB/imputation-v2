@@ -1,6 +1,8 @@
 library(data.table)
 
-args<-commandArgs(TRUE)
+args <- commandArgs(TRUE)
+
+print(args)
 
 
 getScriptPath <- function(){
@@ -15,10 +17,10 @@ getScriptPath <- function(){
 
 scriptDir <- getScriptPath()
 
-#print(scriptDir)
+print(scriptDir)
 
 #Right now the comparison uses only SNPs that belong to the positive strand of hgTable files, SNPs from negative strand of hgTables are not compared to avoid complications
-#Todo: Development of function for detecting flips 
+#Todo: Development of function for detecting flips
 #When flip detection is done, use the function bellow to fix flip by generating reverse complement
 convertToComplement<-function(x){
 	bases=c("A","C","G","T")
@@ -38,11 +40,12 @@ filename <- args[1]
 
 # enable reading both vcf and vcf.gz files
 command <- paste0("less ", filename, " | grep -m 100000 -w \"^1\\|^chr1\" | cut -f 1,2,3,4,5")
-#print(command) 
+print(command)
 
 print(paste0("Reading first 100K markers from chr1 in input file: ", filename, "..."))
 input <- fread(cmd=command)
 input <- as.data.frame(input)
+print(input)
 names(input) <- c("chr", "pos", "originalID", "ref", "alt")
 
 #head(input)
@@ -107,4 +110,3 @@ if(input$chr[1]=="chr1"){
 print(paste0("Use chain file(s): ", chain_names2[maxindex]))
 
 }
-

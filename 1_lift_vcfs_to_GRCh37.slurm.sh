@@ -5,6 +5,11 @@
 #SBATCH --time=540:00:00
 #SBATCH --mem=100G
 
+set -x
+
+myinput=$1
+buildcheck=$2
+myoutdir=$3
 
 #Examples of the variables needed (-v)
 #myinput=/stsi/raqueld/vcf/6800_JHS_all_chr_sampleID_c2.vcf
@@ -22,22 +27,24 @@ pwd
 
 # newgrp tlabdbgap
 
-module purge
-module load ucsc_tools/373
-module load samtools
+# module purge
+# module load ucsc_tools/373
+# module load samtools
 
 
 export filename=$(basename $buildcheck)
 export inprefix=${filename/.BuildChecked/}
 
-export plink="$SLURM_SUBMIT_DIR/required_tools/plink"
-export plink2="$SLURM_SUBMIT_DIR/required_tools/plink2"
+echo $inprefix
+
+export plink="plink"
+export plink2="plink2"
 
 
 # READ_ARR() {
 #     # create filepath array when input txt file list.
 #     declare -A my_arr
-#     while read line; do 
+#     while read line; do
 #         chrom=$(echo $line | awk '{print$1}')
 #         fp=$(echo $line | awk '{print$2}')
 #     #     echo $chrom and $fp
@@ -47,49 +54,47 @@ export plink2="$SLURM_SUBMIT_DIR/required_tools/plink2"
 # export -f CHECK_FORMAT
 
 
-CHECK_SORT () {
-    # Check if input is indexed (also check sort)
-    chrom=$(echo $1 | awk '{print$1}')
-    fp=$(echo $1 | awk '{print$2}')
-    
-    if [ ! -e ${fp}.tbi ]; then
-        echo "input not tabixed"
-        { # try
-            echo "tabixing..."
-            tabix -p vcf ${fp}
-            chmod 770 ${fp}.tbi
-            echo "tabix done, skip sorting."
-            cp ${fp} ./${inprefix}.chr${chrom}.sorted.vcf.gz
-            cp ${fp}.tbi ./${inprefix}.chr${chrom}.sorted.vcf.gz.tbi
-        } || { # except
-            echo "tabix failed, initiate sorting/tabixing..."
-            bcftools sort ${fp} -T ${TEMP} -Oz -o ./${inprefix}.chr${chrom}.sorted.vcf.gz
-            tabix -p vcf ./${inprefix}.chr${chrom}.sorted.vcf.gz
-        }
-    else
-        echo "input tabixed/sorted, skip tabixing/sorting."
-        cp ${fp} ./${inprefix}.chr${chrom}.sorted.vcf.gz
-        cp ${fp}.tbi ./${inprefix}.chr${chrom}.sorted.vcf.gz.tbi
-    fi
-}
-export -f CHECK_SORT
-
-
-SPLIT_CHR () {
-    bcftools view ${1} -r ${2} -Oz -o ${1/.vcf.gz/}.chr${2}.sorted.vcf.gz
-}
-export -f SPLIT_CHR
+# CHECK_SORT () {
+#     # Check if input is indexed (also check sort)
+#     # echo $1
+#     chrom=$1
+#     fp=$2
+#     echo $chrom $fp
+#
+#     if [ ! -e ${fp}.tbi ]; then
+#         echo "input not tabixed"
+#         { # try
+#             echo "tabixing..."
+#             tabix -p vcf ${fp}
+#             chmod 770 ${fp}.tbi
+#             echo "tabix done, skip sorting."
+#             cp ${fp} ./${inprefix}.chr${chrom}.sorted.vcf.gz
+#             cp ${fp}.tbi ./${inprefix}.chr${chrom}.sorted.vcf.gz.tbi
+#         } || { # except
+#             echo "tabix failed, initiate sorting/tabixing..."
+#             bcftools sort ${fp} -T ${TEMP} -Oz -o ./${inprefix}.chr${chrom}.sorted.vcf.gz
+#             tabix -p vcf ./${inprefix}.chr${chrom}.sorted.vcf.gz
+#         }
+#     else
+#         echo "input tabixed/sorted, skip tabixing/sorting."
+#         cp ${fp} ./${inprefix}.chr${chrom}.sorted.vcf.gz
+#         cp ${fp}.tbi ./${inprefix}.chr${chrom}.sorted.vcf.gz.tbi
+#     fi
+# }
+# export -f CHECK_SORT
 
 
 LIFT_OVER () {
-    lift="required_tools/lift/LiftMap.py"
-    cpath="required_tools/chainfiles"
+    lift="/app/required_tools/lift/LiftMap.py"
+    cpath="/app/required_tools/chainfiles"
     cfilename=$(grep "Use chain file" $buildcheck | tr -d ' ' | tr ':' '\t' | tr -d '"' | cut -f 2 | sed -e 's/->/ /g')
     nchains=$(echo $cfilename | tr ' ' '\n' | wc -l | awk '{print $1}')
     checknone=$(grep "Use chain file" $buildcheck | grep "none" | wc -l)
 
-    name=${inprefix}.chr$1
-        
+    name="chr$1"
+
+    echo ${name}
+
     echo "Remove multi-allelic variants"
     bcftools view $name.sorted.vcf.gz -M 2 -m 2 | bcftools norm /dev/stdin -d both -Oz -o $name.sorted.bi.vcf.gz
     tabix -p vcf $name.sorted.bi.vcf.gz
@@ -101,15 +106,15 @@ LIFT_OVER () {
     $plink --vcf $name.sorted.bi.vcf.gz --make-bed --a1-allele $name.sorted.bi.pos 5 3 --biallelic-only strict --set-missing-var-ids @:#:\$1:\$2 --vcf-half-call missing --double-id --recode ped --id-delim '_' --out $name
     # NOTE: '_' is FID_IID deliminator, keep watching if exception ID appeared.
     # TODO update to plink2 when it supported ped files.
-    
+
     if [ $checknone -eq 1 ]; then
         echo "The data set is already based on the correct reference build (Grch37). Just converting and copying it."
         # plink --bfile $name.sorted.bi --make-bed --a1-allele $name.sorted.bi.bim 5 2 --double-id --set-missing-var-ids @:#:\$1:\$2 --allow-extra-chr --out $name.lifted_already_GRCh37.sorted.with_dup
         $plink2 --vcf $name.sorted.bi.vcf.gz --make-bed --double-id --set-missing-var-ids @:#:\$1:\$2 --allow-extra-chr --out $name.lifted_already_GRCh37.sorted.with_dup
-        
+
         cut -f 2 $name.lifted_already_GRCh37.sorted.with_dup.bim | sort | uniq -d > $name.list_multi_a_markers.txt
         ndup=$(wc -l $name.list_multi_a_markers.txt | awk '{print $1}')
-        
+
         if [ "$ndup" -ge 1 ]; then
             echo "Still found duplicate variant ids or multiallelic markers after filtering. Performing additional filtering."
             dupflag=$(echo -e "--exclude $name.list_multi_a_markers.txt")
@@ -118,9 +123,9 @@ LIFT_OVER () {
         fi
         # plink --bfile $name.lifted_already_GRCh37.sorted.with_dup $dupflag --a1-allele $name.sorted.bi.bim 5 2 --make-bed --out $name.lifted_already_GRCh37
         $plink2 --bfile $name.lifted_already_GRCh37.sorted.with_dup $dupflag --make-bed --out $name.lifted_already_GRCh37
-        
+
         for bfile in bed bim fam; do
-            mv $name.lifted_already_GRCh37.${bfile} $inprefix.lifted_already_GRCh37.chr$1.${bfile}
+            mv $name.lifted_already_GRCh37.${bfile} lifted_already_GRCh37.chr${1}.${bfile}
         done
 
         return 1
@@ -144,7 +149,7 @@ LIFT_OVER () {
 
     echo "Converting lifted output $name.lifted_$liftname to bed/bim/fam.."
     $plink --file $name.lifted_$liftname --a1-allele $name.sorted.bi.pos 5 3 --double-id --set-missing-var-ids @:#:\$1:\$2 --allow-extra-chr --make-bed --out $name.lifted_$liftname.sorted.with_dup
-    # TODO: update to plink2 when it supported ped files.   
+    # TODO: update to plink2 when it supported ped files.
 
     cut -f 2 $name.lifted_$liftname.sorted.with_dup.bim | sort | uniq -d > $name.list_multi_a_markers.txt
         ndup=$(wc -l $name.list_multi_a_markers.txt | awk '{print $1}')
@@ -159,10 +164,10 @@ LIFT_OVER () {
             # plink --bfile $name.lifted_$liftname.sorted.with_dup $dupflag --make-bed --a1-allele $name.sorted.bi.bim 5 2 --allow-extra-chr --out $name.lifted_$liftname
             $plink2 --bfile $name.lifted_$liftname.sorted.with_dup $dupflag --make-bed --allow-extra-chr --out $name.lifted_$liftname
             for bfile in bed bim fam; do
-                mv $name.lifted_$liftname.sorted.with_dup.${bfile} $inprefix.lifted_$liftname.chr$1.${bfile}
+                mv $name.lifted_$liftname.sorted.with_dup.${bfile} lifted_$liftname.chr$1.${bfile}
             done
         fi
-    
+
 #    rm $name.map
 #    rm *with_dup*
 #    rm $name.lifted_$liftname.sorted.*
@@ -188,23 +193,33 @@ cd $myoutdir
 
 
 vcfstarttime=$(date +%s)
+echo $myinput
 # Test if input came as split chromosome
-if [[ ${myinput} == *.txt ]]; then
-    echo "Input autosome list detected, run parallel pipeline."
-    parallel CHECK_SORT {1} :::: ${myinput}
-elif [[ ${myinput} == *.vcf.gz ]]; then 
+if [[ ${myinput} == *.vcf ]]; then
+    bgzip -c ${myinput} > myvcf.vcf.gz
+elif [[ ${myinput} == *.vcf.gz ]]; then
+    cp ${myinput} myvcf.vcf.gz
     echo "Input file is merged; split by chromsome."
-    CHECK_SORT "ALL\t${myinput}"
-    SPLIT_CHR ./${inprefix}.chrALL.sorted.vcf.gz {1} ::: {1..22}
-else  
+else
     echo "Invalid file format, please check the input."
     exit
 fi
+
+ls -l
+
+# CHECK_SORT ALL myvcf.vcf.gz
+bcftools sort myvcf.vcf.gz -T ${TEMP} -Oz -o ./myvcf.sorted.vcf.gz
+tabix -p vcf ./myvcf.sorted.vcf.gz
+for i in {1..22}; do bcftools view ./myvcf.sorted.vcf.gz -r ${i} -Oz -o chr${i}.sorted.vcf.gz; done
+# parallel SPLIT_CHR ./${inprefix}.chrALL.sorted.vcf.gz {1} ::: {1..22}
+
+
 vcfendtime=$(date +%s)
 
 
 liftstarttime=$(date +%s)
-parallel LIFT_OVER {1} ::: {1..22}
+for i in {1..2}; do LIFT_OVER 1; done
+# parallel LIFT_OVER {1} ::: {1..22}
 liftendtime=$(date +%s)
 
 
