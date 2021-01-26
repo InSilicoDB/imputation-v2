@@ -29,9 +29,9 @@ module load samtools
 module load R
 
 
-export plink="$SLURM_SUBMIT_DIR/required_tools/plink"
-export plink2="$SLURM_SUBMIT_DIR/required_tools/plink2"
-export split_by_ancestry="$SLURM_SUBMIT_DIR/required_tools/split_by_ancestry/split_by_ancestry.R"
+export plink="plink"
+export plink2="plink2"
+export split_by_ancestry="/app/required_tools/split_by_ancestry/split_by_ancestry.R"
 
 
 starttime=$(date +%s)
@@ -57,24 +57,27 @@ PRUNE_FUN() {
     if [ ${WGS} == "yes" ]; then
         echo "Extracting 23andMe positions only for ancestry analysis, for speeding up ancestry analysis. Original positions will be restored later"
         #positions extracted from 190410_snps.23andme.clean.drop_dup.sorted.data
-        bcftools view -R $PBS_O_WORKDIR/required_tools/chr_pos_23andme.txt ${myinput}.chr$1.vcf.gz -Ov -o ${inprefix}.chr$1.23andMe_pos.vcf
-        $plink2 --vcf ${inprefix}.chr$1.23andMe_pos.vcf --indep-pairwise 100 10 0.05 --out $inprefix.chr$1 # produces <name.prune.in> and <name.prune.out>
+        bcftools view -R /app/required_tools/chr_pos_23andme.txt $inputDir/GH.chr$1.vcf.gz -Ov -o $chr$1.23andMe_pos.vcf
+        $plink2 --vcf chr$1.23andMe_pos.vcf --indep-pairwise 100 10 0.05 --out chr$1 # produces <name.prune.in> and <name.prune.out>
     else
-        $plink2 --vcf $myinput.chr$1.vcf.gz --indep-pairwise 100 10 0.05 --out $inprefix.chr$1 # produces <name.prune.in> and <name.prune.out>
+        $plink2 --vcf $inputDir/GH.chr$1.vcf.gz --indep-pairwise 100 10 0.05 --out chr$1 # produces <name.prune.in> and <name.prune.out>
     fi
 
     # plink --bfile $indir/$inprefix --extract $inprefix.prune.in --recode vcf bgz --keep-allele-order --set-missing-var-ids @:#\$1:\$2 --out $inprefix.pruned
-    vcftools --gzvcf $myinput.chr$1.vcf.gz --snps $inprefix.chr$1.prune.in --recode --recode-INFO-all --out $inprefix.chr$1.pruned
+    vcftools --gzvcf $inputDir/GH.chr$1.vcf.gz --snps $chr$1.prune.in --recode --recode-INFO-all --out chr$1.pruned
 
-    bgzip -c $inprefix.chr$1.pruned.recode.vcf > $inprefix.chr$1.pruned.vcf.gz
-    tabix -p vcf $inprefix.chr$1.pruned.vcf.gz
-    
-    rm $inprefix.chr$1.pruned.recode.vcf
+    bgzip -c chr$1.pruned.recode.vcf > chr$1.pruned.vcf.gz
+    tabix -p vcf chr$1.pruned.vcf.gz
+
+    rm chr$1.pruned.recode.vcf
 }
 export -f PRUNE_FUN
 
 echo "Running pruning..."
-parallel PRUNE_FUN {1} ::: {1..22}
+for i in {1..22}; do
+  PRUNE_FUN $i;
+done
+# parallel PRUNE_FUN {1} ::: {1..22}
 echo "pruning done."
 
 
@@ -84,7 +87,7 @@ ISEC_FUN() {
       $inprefix.chr$1.pruned.vcf.gz \
       /mnt/stsi/stsi0/raqueld/1000G/ALL.chr$1.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.clean.vcf.gz \
       -p ${inprefix}.chr$1_tmp -n =2  -w 1,2 -Oz
-    
+
     bcftools merge ${inprefix}.chr$1_tmp/0000.vcf.gz ${inprefix}.chr$1_tmp/0001.vcf.gz \
       -Oz -o $inprefix.chr$1.pruned.intersect1KG.vcf.gz
     tabix -f -p vcf $inprefix.chr$1.pruned.intersect1KG.vcf.gz
@@ -157,7 +160,7 @@ SPLIT_FUN() {
     # plink --vcf $myinput --a1-allele $inprefix.pos 5 3 --make-bed --out $inprefix
     $plink2 --vcf $myinput.chr$1.vcf.gz --make-bed --id-delim '_' --out $inprefix.chr$1
 
-    for i in {1..5} mixed; do 
+    for i in {1..5} mixed; do
         if [ -f $inprefix.pruned.intersect1KG.5.Q.IDs.$i.ids ]; then
             # plink --bfile $inprefix --keep $inprefix.pruned.intersect1KG.5.Q.IDs.$i.ids --a1-allele $inprefix.pos 5 3 --make-bed --out $inprefix.ancestry-$i
             $plink2 --bfile $inprefix.chr$1 --keep $inprefix.pruned.intersect1KG.5.Q.IDs.$i.ids --make-bed --out $inprefix.ancestry-$i.chr$1
