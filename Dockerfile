@@ -12,9 +12,6 @@ RUN cget install --prefix /app-tools statgen/Minimac4
 
 RUN mkdir /app
 WORKDIR /app
-COPY required_tools required_tools
-COPY 0_check_vcf_build.slurm.sh 0_check_vcf_build.slurm.sh
-
 
 RUN apt-get -y install bzip2
 WORKDIR /app-tools
@@ -67,3 +64,14 @@ ENV PATH /app/required_tools/lift:$PATH
 RUN apt-get -y install default-jre
 
 COPY required_tools/GenotypeHarmonizer required_tools/GenotypeHarmonizer
+
+WORKDIR /app-tools
+# install admixture
+COPY required_tools/admixture_linux-1.3.0.tar.gz .
+RUN tar -zxvf admixture_linux-1.3.0.tar.gz
+ENV PATH /app-tools/admixture_linux-1.3.0:$PATH
+
+WORKDIR /app
+
+COPY required_tools required_tools
+COPY 0_check_vcf_build.slurm.sh 0_check_vcf_build.slurm.sh

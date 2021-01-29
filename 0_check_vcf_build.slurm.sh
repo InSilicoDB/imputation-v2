@@ -14,8 +14,11 @@ pwd
 # module purge
 # module load R
 
+
 myinput=$1
-myoutput="$1.BuildChecked"
+myoutdir=$2
+myoutput="output.BuildChecked"
+
 #myinput example: /stsi/raqueld/vcf/6800_JHS_all_chr_sampleID_c2.vcf
 #myoutput example: /stsi/raqueld/0_check_vcf_build/6800_JHS_all_chr_sampleID_c2.BuildChecked
 #How to run Example
@@ -54,14 +57,13 @@ fi
 echo "Running vcf build check"
 
 # required_tools folder need to locate with this job script
-check_vcf_build="required_tools/check_vcf_build/check_vcf_build.R"
+check_vcf_build="/app/required_tools/check_vcf_build/check_vcf_build.R"
 if [ ! -f $check_vcf_build ]; then
     echo "check_vcf_build.R not found at ${check_vcf_build}. Make sure you downloaded check_vcf_build.R and changed the check_vcf_build variable inside this job script, so it matches to the path where your check_vcf_build.R if located."
     exit
 fi
 
 #check if output directory exists
-myoutdir=$(dirname $myoutput)
 if [ ! -d $myoutdir ]; then
     mkdir -p $myoutdir
 fi

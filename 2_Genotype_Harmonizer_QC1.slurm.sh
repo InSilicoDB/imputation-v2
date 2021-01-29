@@ -30,26 +30,22 @@ pwd
 # module load samtools
 
 
-export inprefix=$(basename $myinput | sed -e 's/\.bed$//g')
-export indir=$(dirname $myinput)
+# export inprefix=$(basename $myinput | sed -e 's/\.bed$//g')
+export indir=$1
+export ref_path=$2
+export outdir=$3
 
 export GH="/app/required_tools/GenotypeHarmonizer/GenotypeHarmonizer.jar"
 
 starttime=$(date +%s)
 
-#change this path to your own reference path
-if [ -z $ref_path ]; then
-    export ref_path=/mnt/stsi/stsi0/raqueld/1000G
-    echo "No reference path provided, check step 2 instructions in README. Using the following path as default: $ref_path"
+if [ ! -d $outdir ]; then
+    mkdir -p $outdir
 fi
 
-if [ ! -d $myoutdir ]; then
-    mkdir -p $myoutdir
-fi
+cd $outdir
 
-cd $myoutdir
-
-export outname=$(basename $myinput).GH
+export outname=GH
 
 
 ############################
@@ -70,12 +66,12 @@ export outname=$(basename $myinput).GH
 
 GH_FUN () {
     if [ "$1" -eq 23 ]; then
-        java -Xmx16g -jar $GH --keep --input $myinput.chr$1 \
+        java -Xmx16g -jar $GH --keep --input $indir/chr$1 \
         --ref $ref_path/ALL.chrX.phase3_shapeit2_mvncall_integrated_v1b.20130502.genotypes.vcf.gz \
         --inputType PLINK_BED --callRateFilter 0.90 --output ./$outname.chr$1
 
     else
-        java -Xmx16g -jar $GH --keep --input $myinput.chr$1 \
+        java -Xmx16g -jar $GH --keep --input $indir/chr$1 \
         --ref  $ref_path/ALL.chr$1.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz \
         --inputType PLINK_BED --callRateFilter 0.90 --output ./$outname.chr$1
     fi
@@ -96,7 +92,12 @@ export -f GH_FUN
 
 echo "Running GH..."
 GHstarttime=$(date +%s)
-    parallel -j 8 GH_FUN {1} ::: {1..23}
+GH_FUN 1;
+# for i in {1..22}; do
+#   GH_FUN $i;
+# done
+
+    # parallel -j 8 GH_FUN {1} ::: {1..23}
 GHendtime=$(date +%s)
 echo "GH done."
 
@@ -173,25 +174,29 @@ export -f FIXREF_FUN
 
 echo "Running FIXREF..."
 fixrefstarttime=$(date +%s)
-    parallel FIXREF_FUN {1} ::: {1..22}
+FIXREF_FUN 1;
+# for i in {1..22}; do
+#   FIXREF_FUN $i;
+# done
+    # parallel FIXREF_FUN {1} ::: {1..22}
 fixrefendtime=$(date +%s)
 echo "FIXREF done."
 
 
-CLEAN_FUN () {
-if [ -f $outname.chr$1.bed ]; then
-    rm $outname.chr$1.bed
-    rm $outname.chr$1.bim
-    rm $outname.chr$1.fam
-fi
-if [ -f $inprefix.chr$1.bed ]; then
-    rm $inprefix.chr$1.*
-fi
-}
-export -f CLEAN_FUN
+# CLEAN_FUN () {
+#   if [ -f harmoniser.chr$1.bed ]; then
+#       rm harmoniser.chr$1.bed
+#       rm harmoniser.chr$1.bim
+#       rm harmoniser.chr$1.fam
+#   fi
+#   if [ -f chr$1.bed ]; then
+#       rm chr$1.*
+#   fi
+# }
+# export -f CLEAN_FUN
 
 echo "Cleaning temporary files..."
-    parallel CLEAN_FUN {1} ::: {1..22}
+    # parallel CLEAN_FUN {1} ::: {1..22}
 echo "Cleaning done."
 
 

@@ -33,13 +33,9 @@ pwd
 
 
 export filename=$(basename $buildcheck)
-export inprefix=${filename/.BuildChecked/}
-
-echo $inprefix
 
 export plink="plink"
 export plink2="plink2"
-
 
 # READ_ARR() {
 #     # create filepath array when input txt file list.
@@ -210,7 +206,9 @@ ls -l
 # CHECK_SORT ALL myvcf.vcf.gz
 bcftools sort myvcf.vcf.gz -T ${TEMP} -Oz -o ./myvcf.sorted.vcf.gz
 tabix -p vcf ./myvcf.sorted.vcf.gz
-for i in {1..22}; do bcftools view ./myvcf.sorted.vcf.gz -r ${i} -Oz -o chr${i}.sorted.vcf.gz; done
+for i in {1..22}; do
+  bcftools view ./myvcf.sorted.vcf.gz -r ${i} -Oz -o chr${i}.sorted.vcf.gz;
+done
 # parallel SPLIT_CHR ./${inprefix}.chrALL.sorted.vcf.gz {1} ::: {1..22}
 
 
@@ -218,7 +216,9 @@ vcfendtime=$(date +%s)
 
 
 liftstarttime=$(date +%s)
-for i in {1..2}; do LIFT_OVER 1; done
+for i in {1..22}; do
+  LIFT_OVER $i;
+done
 # parallel LIFT_OVER {1} ::: {1..22}
 liftendtime=$(date +%s)
 
