@@ -10,4 +10,6 @@
 !./required_tools/plink
 !./required_tools/lift
 !./required_tools/chainfiles
+!./required_tools/admixture_linux-1.3.0.tar.gz
+!./required_tools/GenotypeHarmonizer
 ./A4420_2020_1*

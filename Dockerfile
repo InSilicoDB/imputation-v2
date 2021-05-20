@@ -55,15 +55,15 @@ COPY 6_impute.slurm.sh 6_impute.slurm.sh
 
 COPY required_tools/chainfiles required_tools/chainfiles
 COPY required_tools/lift required_tools/lift
+COPY required_tools/GenotypeHarmonizer required_tools/GenotypeHarmonizer
 
+RUN apt-get update
 RUN apt-get -y install python2
 RUN cp /usr/bin/python2 /usr/bin/python
 
 ENV PATH /app/required_tools/lift:$PATH
 
 RUN apt-get -y install default-jre
-
-COPY required_tools/GenotypeHarmonizer required_tools/GenotypeHarmonizer
 
 WORKDIR /app-tools
 # install admixture
